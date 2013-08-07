@@ -1,0 +1,466 @@
+<html>
+<head>
+<title>Magic Can</title>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+<script type='text/javascript' src='js/jquery.min.js'></script>
+<script type='text/javascript' src='js/Box2dWeb-2.1.a.3.min.js'></script>
+<style type='text/css'>
+#canvas {
+border:4px solid black;
+//background:url('images/apple5c.png');
+}
+body {
+font-family: verdana, arial, helvetica, sans-serif;
+font-size: 20px;
+line-height: 24px; 
+}
+
+</style>
+<script type='text/javascript'>
+$(document).ready(function() {
+
+var rotations;
+var rotationState;
+var lastRotation;
+
+// get ready to create a world
+var CANVAS_WIDTH = 700, CANVAS_HEIGHT = 200, SCALE = 30;
+var world;
+var b2Vec2 = Box2D.Common.Math.b2Vec2;
+
+var context = document.getElementById("canvas").getContext("2d"),
+b2BodyDef = Box2D.Dynamics.b2BodyDef,
+b2Body = Box2D.Dynamics.b2Body,
+b2FixtureDef = Box2D.Dynamics.b2FixtureDef,
+b2Fixture = Box2D.Dynamics.b2Fixture,
+b2World = Box2D.Dynamics.b2World,
+b2MassData = Box2D.Collision.Shapes.b2MassData,
+b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape,
+b2CircleShape = Box2D.Collision.Shapes.b2CircleShape,
+b2DebugDraw = Box2D.Dynamics.b2DebugDraw,
+b2AABB = Box2D.Collision.b2AABB,
+b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef,
+b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef,
+b2DistanceJointDef = Box2D.Dynamics.Joints.b2DistanceJointDef,
+b2PrismaticJointDef = Box2D.Dynamics.Joints.b2PrismaticJointDef,
+b2PulleyJointDef = Box2D.Dynamics.Joints.b2PulleyJointDef;
+
+
+// get ready to capture mouse events
+var isMouseDown = false;
+var mouseX = undefined;
+var mouseY = undefined;
+var p = $("#canvas");
+var canvasPosition = p.position();
+var selectedBody;
+var mouseJoint = null;
+
+var appleCounter = 0;     
+
+function init() {
+lastRotation = 0;
+rotations = 0;
+rotationState = 0;
+// create a world
+world = new b2World(
+new b2Vec2(0, 10)       //gravity
+,  true                 //allow sleep
+);
+
+var fixDef = new b2FixtureDef;
+fixDef.density = 1.0;
+fixDef.friction = 1;
+fixDef.restitution = 0.2;
+var bodyDef = new b2BodyDef;
+
+//create ground
+bodyDef.type = b2Body.b2_staticBody;
+bodyDef.position.x = CANVAS_WIDTH / 2 / SCALE;
+bodyDef.position.y = 80 / SCALE;
+bodyDef.fixedRotation = true;
+bodyDef.userData = {
+name: 'ground0',
+type:'barrier'
+};
+//  fixDef.filter.categoryBits = 0x0001;
+//  fixDef.filter.maskBits = 0x0002 | 0x0008;
+fixDef.shape = new b2PolygonShape;
+fixDef.shape.SetAsBox((CANVAS_WIDTH / SCALE) / 2, (8 / SCALE) / 2);
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+
+//create ground
+bodyDef.type = b2Body.b2_staticBody;
+bodyDef.position.x = CANVAS_WIDTH / 2 / SCALE;
+bodyDef.position.y = 160 / SCALE;
+bodyDef.fixedRotation = true;
+bodyDef.userData = {
+name: 'ground1',
+type:'barrier'
+};
+//  fixDef.filter.categoryBits = 0x0001;
+//  fixDef.filter.maskBits = 0x0002 | 0x0008;
+fixDef.shape = new b2PolygonShape;
+fixDef.shape.SetAsBox((CANVAS_WIDTH / SCALE) / 2, (8 / SCALE) / 2);
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+//create ceiling
+bodyDef.type = b2Body.b2_staticBody;
+bodyDef.position.x = CANVAS_WIDTH / 2 / SCALE;
+bodyDef.position.y = 0 / SCALE;
+bodyDef.fixedRotation = true;
+bodyDef.userData = {
+name: 'ceiling',
+type: 'barrier'
+};
+// fixDef.filter.categoryBits = 0x0001;
+// fixDef.filter.maskBits = 0x0002;
+fixDef.shape = new b2PolygonShape;
+fixDef.shape.SetAsBox((CANVAS_WIDTH / SCALE) / 2, (8 / SCALE) / 2);
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+//create left wall
+bodyDef.type = b2Body.b2_staticBody;
+bodyDef.position.x = 0 / SCALE;
+bodyDef.position.y = CANVAS_HEIGHT / 2 / SCALE;
+bodyDef.fixedRotation = true;
+bodyDef.userData = {
+name: 'leftwall',
+type:'barrier'
+};
+// fixDef.filter.categoryBits = 0x0001;
+// fixDef.filter.maskBits = 0x0002;
+fixDef.shape = new b2PolygonShape;
+fixDef.shape.SetAsBox((10 / SCALE) / 2, (CANVAS_HEIGHT / SCALE) / 2);
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+//create right wall
+bodyDef.type = b2Body.b2_staticBody;
+bodyDef.position.x = CANVAS_WIDTH / SCALE;
+bodyDef.position.y = CANVAS_HEIGHT / 2 / SCALE;
+bodyDef.fixedRotation = true;
+bodyDef.userData = {
+name: 'rightwall',
+type: 'barrier'
+};
+// fixDef.filter.categoryBits = 0x0001;
+// fixDef.filter.maskBits = 0x0002;
+fixDef.shape = new b2PolygonShape;
+fixDef.shape.SetAsBox((10 / SCALE) / 2, (CANVAS_HEIGHT / SCALE) / 2);
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+addCan();
+
+//setup debug draw
+var debugDraw = new b2DebugDraw();
+debugDraw.SetSprite(document.getElementById("canvas").getContext("2d"));
+debugDraw.SetDrawScale(30.0);
+debugDraw.SetFillAlpha(0.3);
+debugDraw.SetLineThickness(1.0);
+debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
+world.SetDebugDraw(debugDraw);
+window.setInterval(update, 1000 / 60);
+//     update();
+
+}
+
+
+function addCan(appleIndex) {
+
+var fixDef = new b2FixtureDef;
+var bodyDef = new b2BodyDef;
+
+//add can
+var imgObj = new Image();
+imgObj.src = 'images/apple8.png';
+context.drawImage(imgObj,7,5);
+bodyDef.type = b2Body.b2_dynamicBody;
+bodyDef.position.x = 500 / SCALE;
+bodyDef.position.y = 40 / SCALE;
+bodyDef.userData = {
+image: 'images/apple8.png',
+imageW: 38,
+imageH: 38,
+name: 'can0'};
+
+fixDef.shape = new b2CircleShape(38 / 2 / SCALE);
+fixDef.density = 1.0;
+fixDef.friction = 1;
+fixDef.restitution = 0.4;
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+
+//add can
+var imgObj = new Image();
+imgObj.src = 'images/apple8.png';
+context.drawImage(imgObj,7,5);
+bodyDef.type = b2Body.b2_dynamicBody;
+bodyDef.position.x = 500 / SCALE;
+bodyDef.position.y = 120 / SCALE;
+bodyDef.userData = {
+image: 'images/apple8.png',
+imageW: 38,
+imageH: 38,
+name: 'can'
+};
+fixDef.shape = new b2CircleShape(38 / 2 / SCALE);
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+//add rock
+bodyDef.type = b2Body.b2_dynamicBody;
+bodyDef.position.x = 500 / SCALE;
+bodyDef.position.y = 128 / SCALE;
+bodyDef.userData = {
+name: 'rock'
+};
+fixDef.density = 2.0;
+fixDef.shape = new b2PolygonShape;
+fixDef.shape.SetAsBox((14 / SCALE) / 2, (14 / SCALE) / 2);
+world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+//add rock-can joint
+var joint = new b2RevoluteJointDef();
+for (b = world.GetBodyList() ; b; b = b.GetNext())
+{
+if (b.GetUserData() != null) {
+var thisName = b.GetUserData().name;
+  if (thisName == 'rock') {var bodyB = b;}
+  if (thisName == 'can') {var bodyA = b;}
+}
+}
+joint.Initialize(bodyA, bodyB, bodyA.GetWorldCenter());
+joint.userData = {
+type: 'rock-can-joint'
+}
+world.CreateJoint(joint);
+}
+
+function update() {
+var imageWidth, imageHeight;
+world.Step(
+1 / 60   //frame-rate
+,  10       //velocity iterations
+,  10       //position iterations
+);
+
+context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+// mouse drags images
+if(isMouseDown && (!mouseJoint)) {
+
+var body = getBodyAtMouse();
+if(body) {
+var md = new b2MouseJointDef();
+md.bodyA = world.GetGroundBody();
+md.bodyB = body;
+md.target.Set(mouseX, mouseY);
+md.collideConnected = true;
+md.maxForce = 300.0 * body.GetMass();
+mouseJoint = world.CreateJoint(md);
+//body.SetAwake(true);
+}
+}
+
+if(mouseJoint) {
+if(isMouseDown) {
+mouseJoint.SetTarget(new b2Vec2(mouseX, mouseY));
+} else {
+for (b = world.GetBodyList() ; b; b = b.GetNext())
+{
+if (b.GetUserData() != null) {
+//                  var thisName = b.GetUserData().name;
+//                  if (thisName == 'sun') {var bodyA = b;}
+
+if (b.m_userData.whatever == 'selected') { b.m_userData.whatever = 'unselected'; }
+}
+}
+//bodyA.SetAwake(false);
+world.DestroyJoint(mouseJoint);
+mouseJoint = null;
+}
+}
+
+
+// Draw Images
+
+for (b = world.GetBodyList() ; b; b = b.GetNext())
+{
+if ((b.GetType() == b2Body.b2_kinematicBody) || (b.GetType() == b2Body.b2_staticBody) || (b.GetType() == b2Body.b2_dynamicBody))
+{
+
+if (b.GetUserData() != null) {
+if ((b.m_userData.type != 'apple') && (b.m_userData.type != 'bar')) {
+var pos = b.GetPosition();
+imageWidth = b.m_userData.imageW;
+imageHeight = b.m_userData.imageH;
+var imgObj = new Image(imageWidth,imageHeight);
+
+imgObj.src = b.m_userData.image;
+
+context.save();
+context.translate(pos.x * SCALE, pos.y * SCALE);
+
+
+if (b.m_userData.name == 'can') {
+//    if ((b.GetAngle() >= 0) && (b.GetAngle() < (25 / 360) * (Math.PI * 2))) {
+
+  rotations = b.GetAngle() / (2 * Math.PI );
+  rotations = rotations.toFixed(0);
+  if (lastRotation != rotations) {
+    console.log('rotations ' + rotations);
+    lastRotation = rotations;
+  }
+// 1 rot
+
+//  var power = 0.5 / rotations;
+//    if (rotations > 0) {
+//      b.ApplyForce({x: -1 * power, y: 0}, b.GetWorldCenter());
+//    } 
+//    if (rotations < 0) {
+//      b.ApplyForce({x: 1 * power, y: 0}, b.GetWorldCenter());
+//    }
+
+
+}
+
+
+context.rotate(b.GetAngle());
+context.drawImage(imgObj,-1 * imageWidth / 2,-1 * imageHeight / 2);
+context.restore();
+}
+}
+} 
+}
+
+context.beginPath();
+context.moveTo(mouseX * SCALE - 70, mouseY * SCALE);
+context.lineTo(mouseX * SCALE + 70, mouseY * SCALE);
+context.strokeStyle = 'pink';
+context.stroke();
+
+context.beginPath();
+context.moveTo(mouseX * SCALE, mouseY * SCALE - 70);
+context.lineTo(mouseX * SCALE, mouseY * SCALE + 70);
+
+context.stroke();
+
+
+
+for (b = world.GetBodyList() ; b; b = b.GetNext())
+{
+if (b.GetType() == b2Body.b2_dynamicBody) 
+{
+
+if (b.m_userData.type == 'apple') {
+var pos = b.GetPosition();
+imageWidth = b.m_userData.imageW;
+imageHeight = b.m_userData.imageH;
+var imgObj = new Image(imageWidth,imageHeight);
+if (b.GetUserData().whatever == 'selected') {
+imgObj.src = b.m_userData.imageChosen;
+} else {
+imgObj.src = b.m_userData.image;
+
+}
+
+//                imgObj.src = b.m_userData.image;
+context.save();
+context.translate(pos.x * SCALE, pos.y * SCALE);
+context.rotate(b.GetAngle());
+context.drawImage(imgObj,-1 * imageWidth / 2,-1 * imageHeight / 2);
+context.restore();
+}
+}
+}
+
+//DEBUG
+
+world.DrawDebugData();
+world.ClearForces();
+}
+
+init();
+
+var handleMouseMove = function(e) {
+mouseX = (e.pageX - canvasPosition.left) / SCALE;
+mouseY = (e.pageY - canvasPosition.top) / SCALE;
+};
+
+var handleTouchMove = function(e) {
+e.preventDefault();
+var orig = e.originalEvent;
+mouseX = (orig.touches[0].pageX - canvasPosition.left) / SCALE;
+mouseY = (orig.touches[0].pageY - canvasPosition.left) / SCALE;
+//$('#comment').text('(' + mouseX + ',' + mouseY + ')');
+};
+
+function getBodyAtMouse() {
+mousePVec = new b2Vec2(mouseX, mouseY);
+var aabb = new b2AABB();
+aabb.lowerBound.Set(mouseX - 0.001, mouseY - 0.001);
+aabb.upperBound.Set(mouseX + 0.001, mouseY + 0.001);
+// Query the world for overlapping shapes.
+selectedBody = null;
+world.QueryAABB(getBodyCB, aabb);
+return selectedBody;
+}
+
+function getBodyCB(fixture) {
+if(fixture.GetBody().GetType() != b2Body.b2_staticBody) {
+if(fixture.GetShape().TestPoint(fixture.GetBody().GetTransform(), mousePVec)) {
+selectedBody = fixture.GetBody();
+return false;
+}
+}
+return true;
+}
+
+
+
+$('#canvas').bind('mouseout', function(event) {
+$('#canvas').unbind('mousemove', handleMouseMove);
+isMouseDown = false;
+mouseX = undefined;
+mouseY = undefined;
+});
+
+$('#canvas').bind('mousedown', function(event) {
+isMouseDown = true;
+$('#canvas').bind('mousemove', handleMouseMove);
+});
+
+$('#canvas').bind('touchstart', function(event) {
+isMouseDown = true;
+$('#canvas').bind('touchmove', handleTouchMove);
+});
+
+$('#canvas').bind('mouseup', function(event) {
+$('#canvas').unbind('mousemove', handleMouseMove);
+isMouseDown = false;
+mouseX = undefined;
+mouseY = undefined;
+});
+
+$('#canvas').bind('touchend', function(event) {
+$('#canvas').unbind('touchmove', handleTouchMove);
+isMouseDown = false;
+mouseX = undefined;
+mouseY = undefined;
+}); 
+
+});
+</script>
+</head>
+<body>
+    <div style='width:700; text-align:left;'>
+    Push ball. Watch it roll.
+    </div>
+    <p><canvas id="canvas" width="700" height="200"></canvas>
+    <p>Based on Science Playgroup Activity,
+     <a href='../playgroup2013.html'>
+    "Magic Rollback Can 2/1/2013"</a>
+    <br><a href='index.html'>More Apps</a>
+    by c_remmler@yahoo.com
+  </body>
+</html>
+

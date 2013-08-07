@@ -1,0 +1,211 @@
+<html>
+  <head>
+    <title>Color</title>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+    <script type='text/javascript' src='js/one-color-all.js'></script>
+    <script type='text/javascript' src='js/jquery.min.js'></script>
+    <script type='text/javascript' src='js/kinetic-v4.3.1.js'></script>
+    <style type='text/css'>
+      #canvas {
+        width:526;
+        height: 350;
+        border:2px solid #A0A0A0;
+      }
+      body {
+        font-family: verdana, arial, helvetica, sans-serif;
+        font-size: 20px;
+        line-height: 24px; 
+      }
+
+    </style>
+    <script type='text/javascript'>
+      $(document).ready(function() {
+
+        //create stage, the place where you will add layers
+        var stage = new Kinetic.Stage({
+          container: "canvas",
+          height:350,
+          width:526
+        });
+
+        //create layer, the place where you will add images
+        var layer = new Kinetic.Layer();
+
+        var isMouseDown, mouseX, mouseY;
+        var p = $("#canvas");
+        var canvasPosition = p.position();
+
+        var wells = new Object();
+
+        var xs = [55,139,223,307,392,476];
+        var ys = [50,132,217,300];
+
+        var wellIndex = 0;
+        var dragIcon;
+
+        var imageObj = new Image();
+        imageObj.onload = function() {
+          background = new Kinetic.Image({
+            x: 0,
+            y: 0,
+            image: imageObj,
+            width: 526,
+            height: 350
+          });
+          var dividingLine = new Kinetic.Line({
+            points: [96, 0, 96, 350],
+            stroke: '#A0A0A0',
+            strokeWidth: 2,
+          });
+          layer.add(background);
+          //layer.add(dividingLine);
+
+          // x, y, CMYK
+          createWell(xs[0],ys[0],0,1,0,0);
+          createWell(xs[0],ys[1],0,0,1,0);
+          createWell(xs[0],ys[2],1,0,0,0);
+          createWell(xs[0],ys[3],0,0,0,0);
+          for (i=1; i<6; i++) {
+            for (j=0;j<4; j++) {
+              createWell(xs[i],ys[j],0,0,0,0);
+            }
+          }
+
+          dragIcon = new Kinetic.Circle({
+            x: 0,
+            y: 0,
+           // draggable: true,
+            fill: 'black',
+            stroke: '#AFAFAF',
+            strokeWidth: 1,
+            radius: 30
+          });
+          dragIcon.on('mouseup touchend',function(event) {
+
+          });
+          layer.add(dragIcon);
+          dragIcon.hide();
+          stage.add(layer);
+        }
+        imageObj.src = 'images/color19.png';
+
+        layer.on('mousedown touchstart',function() {
+        });
+
+        layer.on('mouseup touchend',function(event) {
+            var newC, newM, newY, newK, myColor;
+
+            for (k in wells) {
+              if (wells[k].intersects([mouseX,mouseY]) ) {
+               newC = wells[startedOn].getAttrs().cSum + wells[k].getAttrs().cSum;
+                newM = wells[startedOn].getAttrs().mSum + wells[k].getAttrs().mSum;
+                newY = wells[startedOn].getAttrs().ySum + wells[k].getAttrs().ySum;
+                newK = wells[startedOn].getAttrs().kSum + wells[k].getAttrs().kSum;
+                var big = Math.max(newC, newM, newY, newK);
+
+                myColor = new one.color.CMYK(newC / big, newM / big, newY / big, newK / big);
+                wells[k].setFill(myColor.hex());
+                wells[k].setAttrs({cSum:newC, mSum: newM, ySum: newY, kSum: newK});
+
+                console.log('ended on ' + k);
+              }
+            }
+
+
+          dragIcon.hide();
+          layer.draw();
+        });
+
+        function createWell( xCell, yCell, cVal, mVal, yVal, kVal) {
+          var myColor = new one.color.CMYK(cVal, mVal, yVal, kVal);
+          wells[wellIndex] = new Kinetic.Circle({ 
+            x: xCell,
+            y: yCell,
+            fill: myColor.hex(),
+            stroke: '#AFAFAF',
+            strokeWidth: 1,
+            radius: 35
+          });
+          wells[wellIndex].setAttrs({cSum: cVal, mSum: mVal, ySum: yVal, kSum: kVal});
+          addWellEvent(wellIndex);
+          layer.add(wells[wellIndex]);
+          wellIndex++;
+        }
+
+        var startedOn;
+
+        function addWellEvent(tempId) {
+          wells[tempId].on('mousedown touchstart',function() {
+            startedOn = tempId;
+            var thisColor = wells[tempId].getFill();
+            if (thisColor != '#ffffff') { dragIcon.show(); }
+            dragIcon.setFill(thisColor);
+          });
+        }
+
+
+        var handleMouseMove = function(e) {
+          mouseX = (e.pageX - canvasPosition.left);
+          mouseY = (e.pageY - canvasPosition.top);
+dragIcon.setPosition(mouseX, mouseY);
+layer.draw();
+
+        };
+
+        var handleTouchMove = function(e) {
+          e.preventDefault();
+          var orig = e.originalEvent;
+          mouseX = (orig.touches[0].pageX - canvasPosition.left);
+          mouseY = (-30 + orig.touches[0].pageY - canvasPosition.left);
+dragIcon.setPosition(mouseX, mouseY);
+layer.draw();
+        };
+
+        $('#canvas').bind('mouseout', function(event) {
+          $('#canvas').unbind('mousemove', handleMouseMove);
+          isMouseDown = false;
+          mouseX = undefined;
+          mouseY = undefined;
+        });
+
+        $('#canvas').bind('mousedown', function(event) {
+          isMouseDown = true;
+          $('#canvas').bind('mousemove', handleMouseMove);
+        });
+
+        $('#canvas').bind('touchstart', function(event) {
+          isMouseDown = true;
+          $('#canvas').bind('touchmove', handleTouchMove);
+        });
+
+        $('#canvas').bind('mouseup', function(event) {
+          $('#canvas').unbind('mousemove', handleMouseMove);
+          isMouseDown = false;
+          mouseX = undefined;
+          mouseY = undefined;
+        });
+
+        $('#canvas').bind('touchend', function(event) {
+          $('#canvas').unbind('touchmove', handleTouchMove);
+          isMouseDown = false;
+          mouseX = undefined;
+          mouseY = undefined;
+        }); 
+
+      });
+     </script>
+  </head>
+  <body>
+    <div style='width:653; text-align:left;'>
+      Drag colors. Watch them mix.
+    </div>
+    <p><div id='canvas'></div>
+
+    <p>Based on Science Playgroup Activity,
+    <a href='../playgroup2012.html'>
+    "Mixing Colors with Pipettes 5/4/12"</a>
+    <br><a href='index.html'>More Apps</a>
+    by c_remmler@yahoo.com
+  </body>
+</html>
+

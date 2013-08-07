@@ -1,0 +1,368 @@
+<html>
+  <head>
+    <title>Sun</title>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+    <script type='text/javascript' src='js/jquery.min.js'></script>
+    <script type='text/javascript' src='js/Box2dWeb-2.1.a.3.min.js'></script>
+    <style type='text/css'>
+      #canvas {
+        border:4px solid black;
+//        background:url('images/sun5.png');
+      }
+      body {
+        font-family: verdana, arial, helvetica, sans-serif;
+        font-size: 20px;
+        line-height: 24px; 
+      }
+
+    </style>
+    <script type='text/javascript'>
+      $(document).ready(function() {
+    
+        // get ready to create a world
+        var CANVAS_WIDTH = 653, CANVAS_HEIGHT = 458, SCALE = 30;
+        var world;
+        var b2Vec2 = Box2D.Common.Math.b2Vec2;
+
+        var context = document.getElementById("canvas").getContext("2d"),
+          b2BodyDef = Box2D.Dynamics.b2BodyDef,
+          b2Body = Box2D.Dynamics.b2Body,
+          b2FixtureDef = Box2D.Dynamics.b2FixtureDef,
+          b2Fixture = Box2D.Dynamics.b2Fixture,
+          b2World = Box2D.Dynamics.b2World,
+          b2MassData = Box2D.Collision.Shapes.b2MassData,
+          b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape,
+          b2CircleShape = Box2D.Collision.Shapes.b2CircleShape,
+          b2DebugDraw = Box2D.Dynamics.b2DebugDraw,
+          b2AABB = Box2D.Collision.b2AABB,
+          b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef,
+          b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef,
+          b2DistanceJointDef = Box2D.Dynamics.Joints.b2DistanceJointDef,
+          b2PrismaticJointDef = Box2D.Dynamics.Joints.b2PrismaticJointDef,
+          b2PulleyJointDef = Box2D.Dynamics.Joints.b2PulleyJointDef;
+
+
+          // get ready to capture mouse events
+          var isMouseDown = false;
+          var mouseX = undefined;
+          var mouseY = undefined;
+          var p = $("#canvas");
+          var canvasPosition = p.position();
+          var selectedBody;
+          var mouseJoint = null;
+
+         var appleId = 0;     
+
+        function init() {
+          // create a world
+          world = new b2World(
+            new b2Vec2(0, 0)       //gravity
+            ,  true                 //allow sleep
+          );
+
+          var fixDef = new b2FixtureDef;
+          fixDef.density = 1.0;
+          fixDef.friction = 0.5;
+          fixDef.restitution = 0.2;
+          var bodyDef = new b2BodyDef;
+ 
+          //create ground for sun
+          bodyDef.type = b2Body.b2_staticBody;
+          bodyDef.position.x = CANVAS_WIDTH / 2 / SCALE;
+          bodyDef.position.y = 284 / SCALE;
+          bodyDef.fixedRotation = true;
+          bodyDef.userData = {
+            name: 'ground'
+          };
+          fixDef.shape = new b2PolygonShape;
+          fixDef.shape.SetAsBox((CANVAS_WIDTH / SCALE) / 2, (8 / SCALE) / 2);
+          world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+
+          //add sun
+
+          var imgObj = new Image();
+          imgObj.src = 'images/sun8.png';
+//          context.drawImage(imgObj,7,5);
+          bodyDef.type = b2Body.b2_dynamicBody;
+          bodyDef.position.x = 105 / SCALE;
+          bodyDef.position.y = 190 / SCALE;
+          bodyDef.userData = { 
+            image: 'images/sun8.png',
+            imageW: 77,
+            imageH: 77,
+            name: 'sun'
+          };
+          fixDef.shape = new b2CircleShape(154 / 2 / SCALE);
+          fixDef.density = 1.0;
+          fixDef.friction = 0.5;
+          fixDef.restitution = 0.2;
+          world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+          //add girl
+          var imgObj = new Image();
+          imgObj.src = 'images/sun8.png';
+          bodyDef.type = b2Body.b2_staticBody;
+          bodyDef.position.x = 327 / SCALE;
+          bodyDef.position.y = 413 / SCALE;
+          bodyDef.userData = {
+            name: 'girl'
+          };
+          fixDef.shape = new b2CircleShape(50 / 2 / SCALE);
+          fixDef.density = 1.0;
+          fixDef.friction = 0.5;
+          fixDef.restitution = 0.2;
+          world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+          //add joint connecting sun to girl
+          var joint = new b2DistanceJointDef();
+          for (b = world.GetBodyList() ; b; b = b.GetNext())
+          {
+            if (b.GetUserData() != null) {
+              var thisName = b.GetUserData().name;
+              if (thisName == 'girl') {var bodyB = b;}
+              if (thisName == 'sun') {var bodyA = b;}
+            }
+          }
+          var anchorA = new b2Vec2(bodyA.GetWorldCenter().x,bodyA.GetWorldCenter().y);
+          var anchorB = new b2Vec2(bodyB.GetWorldCenter().x,bodyB.GetWorldCenter().y);
+          joint.Initialize(bodyA, bodyB, anchorA, anchorB);
+          joint.userData = {
+            name: 'sunGirlJoint'
+          }
+
+          world.CreateJoint(joint);
+
+
+
+          //setup debug draw
+          var debugDraw = new b2DebugDraw();
+          debugDraw.SetSprite(document.getElementById("canvas").getContext("2d"));
+          debugDraw.SetDrawScale(30.0);
+          debugDraw.SetFillAlpha(0.3);
+          debugDraw.SetLineThickness(1.0);
+          debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
+          world.SetDebugDraw(debugDraw);
+          window.setInterval(update, 1000 / 60);
+          //update();
+
+        }
+
+            var imgBObj = new Image(CANVAS_WIDTH, CANVAS_HEIGHT);
+            imgBObj.src = 'images/sun5.png';
+
+
+        function update() {
+          var imageWidth, imageHeight;
+          world.Step(
+               1 / 60   //frame-rate
+            ,  10       //velocity iterations
+            ,  10       //position iterations
+          );
+context.fillStyle = "rgb(f,f,f)";
+context.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+//            var imgObj = new Image(CANVAS_WIDTH, CANVAS_HEIGHT);
+//            imgObj.src = 'images/sun5.png';
+//            var imgBObj = new Image(CANVAS_WIDTH, CANVAS_HEIGHT);
+//            imgBObj.src = 'images/sun5.png';
+
+          context.drawImage(imgBObj,0,0);
+
+ 
+//context.drawRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT,'white');
+//          context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+          // mouse drags images
+          if(isMouseDown && (!mouseJoint)) {
+            var body = getBodyAtMouse();
+            if(body) {
+              if (body.m_userData.whatever == "unselected") {
+                for (b = world.GetBodyList() ; b; b = b.GetNext())
+                {
+                  if (b.GetType() == b2Body.b2_dynamicBody)
+                  {
+                    if (b.m_userData.whatever == "selected") {
+                      b.m_userData.whatever = "unselected";
+                    }
+                  }
+                }
+                body.m_userData.whatever = "selected";
+              }
+              var md = new b2MouseJointDef();
+              md.bodyA = world.GetGroundBody();
+              md.bodyB = body;
+              md.target.Set(mouseX, mouseY);
+              md.collideConnected = true;
+              md.maxForce = 300.0 * body.GetMass();
+              mouseJoint = world.CreateJoint(md);
+              body.SetAwake(true);
+            }
+          }
+
+          if(mouseJoint) {
+            if(isMouseDown) {
+              mouseJoint.SetTarget(new b2Vec2(mouseX, mouseY));
+            } else {
+              for (b = world.GetBodyList() ; b; b = b.GetNext())
+              {
+                if (b.GetUserData() != null) {
+                  var thisName = b.GetUserData().name;
+                  if (thisName == 'sun') {var bodyA = b;}
+                }
+              }
+              bodyA.SetAwake(false);
+              world.DestroyJoint(mouseJoint);
+              mouseJoint = null;
+            }
+          }
+
+          var sgJoint = null;
+          for (j = world.GetJointList() ; j; j = j.GetNext())
+          {
+             if (j.GetUserData() != null) {
+               var thisName = j.GetUserData().name;
+               if (thisName == 'sunGirlJoint') {sgJoint = j;}
+             }
+          }
+          if (sgJoint != null) {
+
+            var x1 = sgJoint.GetAnchorA().x * SCALE;
+            var y1 = sgJoint.GetAnchorA().y * SCALE;
+            var x2 = 327;
+            var y2 = 304;
+            var slope = (y2 - y1) / (x2 - x1);
+            var yint = y2 - (x2 * slope);
+            var y3 = 414;
+            var x3 = (y3 - yint) / slope;
+          //  var x4 = 316;
+            var y4 = 414; 
+//653 / 2 = 327
+// 307, 347
+// 292, 344
+            if (x3 > 352) 
+            { 
+              x4 = 302;
+            } else {
+              if (x3 < 302) {
+                x4 = 352; 
+              } else {
+                x3 = 302;
+                x4 = 352;
+              }
+            }
+
+            context.beginPath();
+            context.moveTo(x3,y3);
+            context.lineTo(x4,y4);
+            context.lineWidth = 12;
+            context.strokeStyle = "rgb(0,0,0)";
+            context.stroke();
+          }
+
+          // Draw Images
+          for (b = world.GetBodyList() ; b; b = b.GetNext())
+          {
+            if (b.GetType() == b2Body.b2_dynamicBody)
+            {
+              var pos = b.GetPosition();
+              imageWidth = b.m_userData.imageW;
+              imageHeight = b.m_userData.imageH;
+              var imgObj = new Image(imageWidth,imageHeight);
+              imgObj.src = b.m_userData.image;
+              context.save();
+              context.translate(pos.x * SCALE, pos.y * SCALE);
+              context.rotate(b.GetAngle());
+              context.drawImage(imgObj,-1 * imageWidth / 2,-1 * imageHeight / 2);
+              context.restore();
+            } 
+          }
+//DEBUG
+  //        world.DrawDebugData();
+          world.ClearForces();
+        }
+
+        init();
+
+        var handleMouseMove = function(e) {
+          mouseX = (e.pageX - canvasPosition.left) / SCALE;
+          mouseY = (e.pageY - canvasPosition.top) / SCALE;
+        };
+
+        var handleTouchMove = function(e) {
+          e.preventDefault();
+          var orig = e.originalEvent;
+          mouseX = (orig.touches[0].pageX - canvasPosition.left) / SCALE;
+          mouseY = (-30 + orig.touches[0].pageY - canvasPosition.left) / SCALE;
+          //$('#comment').text('(' + mouseX + ',' + mouseY + ')');
+        };
+
+        function getBodyAtMouse() {
+          mousePVec = new b2Vec2(mouseX, mouseY);
+          var aabb = new b2AABB();
+          aabb.lowerBound.Set(mouseX - 0.001, mouseY - 0.001);
+          aabb.upperBound.Set(mouseX + 0.001, mouseY + 0.001);
+          // Query the world for overlapping shapes.
+          selectedBody = null;
+          world.QueryAABB(getBodyCB, aabb);
+          return selectedBody;
+        }
+
+        function getBodyCB(fixture) {
+          if(fixture.GetBody().GetType() != b2Body.b2_staticBody) {
+            if(fixture.GetShape().TestPoint(fixture.GetBody().GetTransform(), mousePVec)) {
+              selectedBody = fixture.GetBody();
+              return false;
+            }
+          }
+          return true;
+        }
+
+        
+
+        $('#canvas').bind('mouseout', function(event) {
+          $('#canvas').unbind('mousemove', handleMouseMove);
+          isMouseDown = false;
+          mouseX = undefined;
+          mouseY = undefined;
+        });
+
+        $('#canvas').bind('mousedown', function(event) {
+          isMouseDown = true;
+          $('#canvas').bind('mousemove', handleMouseMove);
+        });
+
+        $('#canvas').bind('touchstart', function(event) {
+          isMouseDown = true;
+          $('#canvas').bind('touchmove', handleTouchMove);
+        });
+
+        $('#canvas').bind('mouseup', function(event) {
+          $('#canvas').unbind('mousemove', handleMouseMove);
+          isMouseDown = false;
+          mouseX = undefined;
+          mouseY = undefined;
+        });
+
+        $('#canvas').bind('touchend', function(event) {
+          $('#canvas').unbind('touchmove', handleTouchMove);
+          isMouseDown = false;
+          mouseX = undefined;
+          mouseY = undefined;
+        }); 
+
+      });
+     </script>
+  </head>
+  <body>
+    <div style='width:653; text-align:left;'>
+      Drag sun. Watch shadow change.
+    </div>
+    <p><canvas id="canvas" width="653" height="458"></canvas>
+    <p>Based on Science Playgroup Activity,
+     <a href='../playgroup2012.html'>
+    "Compass and Sundial 11/30/2012"</a>
+    <br><a href='index.html'>More Apps</a>
+    by c_remmler@yahoo.com
+  </body>
+</html>
+
